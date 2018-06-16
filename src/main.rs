@@ -50,8 +50,14 @@ fn main() {
 
     let pso = factory
         .create_pipeline_simple(
-            include_bytes!("triangle.glslv"),
-            include_bytes!("triangle.glslf"),
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/shaders/triangle.glslv"
+            )),
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/shaders/triangle.glslf"
+            )),
             pipe::new(),
         )
         .unwrap();
