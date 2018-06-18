@@ -9,3 +9,4 @@ gfx_window_glutin = "0.24"
 glutin = "0.16"
 image = "0.19"
 rand = "0.4"
+breakout-core = { path = "breakout-core" }

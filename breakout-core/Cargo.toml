@@ -1,0 +1,7 @@
+[package]
+name = "breakout-core"
+version = "0.1.0"
+authors = ["Andrew Gaspar <andrew.gaspar@outlook.com>"]
+
+[dependencies]
+rand = "0.5"

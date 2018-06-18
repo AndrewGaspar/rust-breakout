@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate gfx;
+extern crate breakout_core;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate image;
@@ -8,9 +9,10 @@ extern crate rand;
 mod colors;
 mod cursor;
 mod gfx_props;
-mod pseudocube;
+// mod pseudocube;
 mod square;
 
+use breakout_core::{Ball, BreakoutBuilder, Paddle};
 use colors::*;
 use gfx::texture::Mipmap;
 use gfx::traits::FactoryExt;
@@ -18,7 +20,7 @@ use gfx::Device;
 use gfx_props::*;
 use glutin::{ElementState::Pressed, GlContext, KeyboardInput, MouseButton, VirtualKeyCode,
              WindowEvent};
-use pseudocube::Pseudocube;
+// use pseudocube::Pseudocube;
 
 fn load_texture<F, R>(factory: &mut F, path: &str) -> gfx::handle::ShaderResourceView<R, [f32; 4]>
 where
@@ -62,12 +64,21 @@ fn main() {
         )
         .unwrap();
 
-    let mut cube = Pseudocube::new();
+    // let mut cube = Pseudocube::new();
 
-    let (vertices, indices) = cube.get_vertices_indices();
+    // let (vertices, indices) = cube.get_vertices_indices();
+
+    let vertices = Vec::new();
+    let indices: Vec<u16> = Vec::new();
 
     let (vertex_buffer, mut slice) =
         factory.create_vertex_buffer_with_slice(&vertices, &indices[..]);
+
+    let mut game = BreakoutBuilder::new()
+        .dt(1. / 120.)
+        .ball(Ball::new(0.02, (0.5, 0.7), (0., -0.1)))
+        .paddle(Paddle::new((0.1, 0.04), (0.5, 0.20)))
+        .build();
 
     let texture = load_texture(&mut factory, "assets/awesome.jpg");
     let sampler = factory.create_sampler_linear();
@@ -87,11 +98,11 @@ fn main() {
     let mut is_fullscreen = false;
     while running {
         if needs_update {
-            let (vs, is) = cube.get_vertices_indices();
-            let (vbuf, sl) = factory.create_vertex_buffer_with_slice(&vs, &is[..]);
+            // let (vs, is) = cube.get_vertices_indices();
+            // let (vbuf, sl) = factory.create_vertex_buffer_with_slice(&vs, &is[..]);
 
-            data.vbuf = vbuf;
-            slice = sl;
+            // data.vbuf = vbuf;
+            // slice = sl;
 
             needs_update = false;
         }
@@ -154,17 +165,17 @@ fn main() {
                     }
                     WindowEvent::Resized(w, h) => {
                         gfx_window_glutin::update_views(&window, &mut data.out, &mut main_depth);
-                        cube.update_ratio(w as f32 / h as f32);
+                        // cube.update_ratio(w as f32 / h as f32);
                         window_size = (w as f32, h as f32);
                         needs_update = true;
                     }
                     WindowEvent::CursorMoved {
                         position: (x, y), ..
                     } => {
-                        cube.update_cursor_position(
-                            x as f32 / window_size.0,
-                            y as f32 / window_size.1,
-                        );
+                        // cube.update_cursor_position(
+                        //     x as f32 / window_size.0,
+                        //     y as f32 / window_size.1,
+                        // );
                         needs_update = true;
                     }
                     WindowEvent::MouseInput {
@@ -173,10 +184,10 @@ fn main() {
                         ..
                     } => {
                         if state == Pressed {
-                            cube.start_growing();
+                            // cube.start_growing();
                             mouse_held = true;
                         } else {
-                            cube.stop_growing();
+                            // cube.stop_growing();
                             mouse_held = false;
                         }
                     }
@@ -189,7 +200,7 @@ fn main() {
             needs_update = true;
         }
 
-        cube.tick();
+        // cube.tick();
 
         // cube.add_square(
         //     rand::random::<f32>() * 2.0 - 1.0,
