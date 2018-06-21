@@ -7,33 +7,68 @@ extern crate image;
 extern crate rand;
 
 mod colors;
-mod cursor;
 mod gfx_props;
-// mod pseudocube;
-mod square;
 
-use breakout_core::{Ball, BreakoutBuilder, Paddle};
+use breakout_core::{Ball, Breakout, BreakoutBuilder, GameObject, Paddle};
 use colors::*;
-use gfx::texture::Mipmap;
 use gfx::traits::FactoryExt;
 use gfx::Device;
 use gfx_props::*;
 use glutin::{ElementState::Pressed, GlContext, KeyboardInput, MouseButton, VirtualKeyCode,
              WindowEvent};
-// use pseudocube::Pseudocube;
+use std::time;
 
-fn load_texture<F, R>(factory: &mut F, path: &str) -> gfx::handle::ShaderResourceView<R, [f32; 4]>
-where
-    F: gfx::Factory<R>,
-    R: gfx::Resources,
-{
-    let img = image::open(path).unwrap().to_rgba();
-    let (width, height) = img.dimensions();
-    let kind = gfx::texture::Kind::D2(width as u16, height as u16, gfx::texture::AaMode::Single);
-    let (_, view) = factory
-        .create_texture_immutable_u8::<ColorFormat>(kind, Mipmap::Provided, &[&img])
-        .unwrap();
-    view
+fn get_paddle_vertices_and_indices(game: &Breakout) -> (Vec<Vertex>, Vec<u16>) {
+    let (mut vs, mut is) = (vec![], vec![]);
+
+    let ((left, top), (right, bottom)) = game.paddle().boundaries();
+
+    vs.extend(&[
+        Vertex {
+            pos: [right * 2. - 1., bottom * 2. - 1.],
+            color: WHITE,
+        },
+        Vertex {
+            pos: [left * 2. - 1., bottom * 2. - 1.],
+            color: WHITE,
+        },
+        Vertex {
+            pos: [left * 2. - 1., top * 2. - 1.],
+            color: WHITE,
+        },
+        Vertex {
+            pos: [right * 2. - 1., top * 2. - 1.],
+            color: WHITE,
+        },
+    ]);
+    is.extend(&[0, 1, 2, 2, 3, 0]);
+
+    (vs, is)
+}
+
+fn get_ball_vertices_and_indices(game: &Breakout) -> (Vec<BallVertex>, Vec<u16>) {
+    let (mut vs, mut is) = (vec![], vec![]);
+
+    let radius = game.ball().radius();
+    let (left, top, right, bottom) = (0., radius * 2., radius * 2., 0.);
+
+    vs.extend(&[
+        BallVertex {
+            pos: [right * 2., bottom * 2.],
+        },
+        BallVertex {
+            pos: [left * 2., bottom * 2.],
+        },
+        BallVertex {
+            pos: [left * 2., top * 2.],
+        },
+        BallVertex {
+            pos: [right * 2., top * 2.],
+        },
+    ]);
+    is.extend(&[0, 1, 2, 2, 3, 0]);
+
+    (vs, is)
 }
 
 fn main() {
@@ -41,9 +76,10 @@ fn main() {
         .with_title("Breakout".to_string())
         .with_dimensions(800, 800);
 
-    let gl_builder = glutin::ContextBuilder::new().with_vsync(true);
+    let gl_builder = glutin::ContextBuilder::new();
+    // .with_vsync(true);
     let mut events_loop = glutin::EventsLoop::new();
-    let (window, mut device, mut factory, main_color, mut main_depth) =
+    let (window, mut device, mut factory, main_color, _) =
         gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, gl_builder, &events_loop);
 
     window.set_cursor(glutin::MouseCursor::NoneCursor);
@@ -52,59 +88,71 @@ fn main() {
 
     let pso = factory
         .create_pipeline_simple(
-            include_bytes!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/shaders/triangle.glslv"
-            )),
-            include_bytes!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/shaders/triangle.glslf"
-            )),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/paddle.vert")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/paddle.frag")),
             pipe::new(),
         )
         .unwrap();
 
-    // let mut cube = Pseudocube::new();
-
-    // let (vertices, indices) = cube.get_vertices_indices();
-
-    let vertices = Vec::new();
-    let indices: Vec<u16> = Vec::new();
-
-    let (vertex_buffer, mut slice) =
-        factory.create_vertex_buffer_with_slice(&vertices, &indices[..]);
+    let ball_pso = factory
+        .create_pipeline_simple(
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/ball.vert")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/ball.frag")),
+            ball_pipe::new(),
+        )
+        .unwrap();
 
     let mut game = BreakoutBuilder::new()
         .dt(1. / 120.)
-        .ball(Ball::new(0.02, (0.5, 0.7), (0., -0.1)))
-        .paddle(Paddle::new((0.1, 0.04), (0.5, 0.20)))
+        .ball(Ball::new(0.01, (0.5, 0.7), (0., -0.5)))
+        .paddle(Paddle::new((0.15, 0.02), (0.5, 0.075)))
         .build();
 
-    let texture = load_texture(&mut factory, "assets/awesome.jpg");
-    let sampler = factory.create_sampler_linear();
+    let (vertices, indices) = get_paddle_vertices_and_indices(&game);
+    let (ball_vertices, ball_indices) = get_ball_vertices_and_indices(&game);
 
-    let mut data = pipe::Data {
+    let (vertex_buffer, slice) = factory.create_vertex_buffer_with_slice(&vertices, &indices[..]);
+
+    let (ball_vertex_buffer, ball_slice) =
+        factory.create_vertex_buffer_with_slice(&ball_vertices, &ball_indices[..]);
+
+    let data = pipe::Data {
         vbuf: vertex_buffer,
-        awesome: (texture, sampler),
-        switch: 0,
-        out: main_color,
+        out: main_color.clone(),
     };
 
+    let mut ball_data = ball_pipe::Data {
+        vbuf: ball_vertex_buffer,
+        midpoint: [
+            game.ball().location().0 * 2. - 1.,
+            game.ball().location().1 * 2. - 1.,
+        ],
+        color: RED,
+        radius: game.ball().radius() * 2.,
+        out: main_color.clone(),
+    };
+
+    let nanos_per_update = time::Duration::new(0, (1_000_000_000.0f32 / 120.0f32).round() as u32);
+
     let mut running = true;
-    let mut needs_update = false;
     let mut mouse_held = false;
     let mut alt_held = false;
     let mut window_size = (800.0, 800.0);
     let mut is_fullscreen = false;
+    let mut last_update = time::Instant::now();
+    let mut needs_update = false;
     while running {
+        while last_update.elapsed() >= nanos_per_update {
+            game.tick();
+            last_update += nanos_per_update;
+            needs_update = true;
+        }
+
         if needs_update {
-            // let (vs, is) = cube.get_vertices_indices();
-            // let (vbuf, sl) = factory.create_vertex_buffer_with_slice(&vs, &is[..]);
-
-            // data.vbuf = vbuf;
-            // slice = sl;
-
-            needs_update = false;
+            ball_data.midpoint = [
+                game.ball().location().0 * 2. - 1.,
+                game.ball().location().1 * 2. - 1.,
+            ];
         }
 
         // fetch events
@@ -120,15 +168,6 @@ fn main() {
                             },
                         ..
                     } => running = false,
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode: Some(VirtualKeyCode::Space),
-                                state: Pressed,
-                                ..
-                            },
-                        ..
-                    } => data.switch = 1 - data.switch,
                     WindowEvent::KeyboardInput {
                         input:
                             KeyboardInput {
@@ -164,19 +203,9 @@ fn main() {
                         }
                     }
                     WindowEvent::Resized(w, h) => {
-                        gfx_window_glutin::update_views(&window, &mut data.out, &mut main_depth);
+                        // gfx_window_glutin::update_views(&window, &mut data.out, &mut main_depth);
                         // cube.update_ratio(w as f32 / h as f32);
                         window_size = (w as f32, h as f32);
-                        needs_update = true;
-                    }
-                    WindowEvent::CursorMoved {
-                        position: (x, y), ..
-                    } => {
-                        // cube.update_cursor_position(
-                        //     x as f32 / window_size.0,
-                        //     y as f32 / window_size.1,
-                        // );
-                        needs_update = true;
                     }
                     WindowEvent::MouseInput {
                         state,
@@ -196,21 +225,8 @@ fn main() {
             }
         });
 
-        if mouse_held {
-            needs_update = true;
-        }
-
-        // cube.tick();
-
-        // cube.add_square(
-        //     rand::random::<f32>() * 2.0 - 1.0,
-        //     rand::random::<f32>() * 2.0 - 1.0,
-        //     rand::random::<f32>() * 2.0,
-        //     [rand::random(), rand::random(), rand::random()],
-        // );
-        // needs_update = true;
-
-        encoder.clear(&data.out, CLEAR_COLOR);
+        encoder.clear(&ball_data.out, CLEAR_COLOR);
+        encoder.draw(&ball_slice, &ball_pso, &ball_data);
         encoder.draw(&slice, &pso, &data);
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();

@@ -106,12 +106,11 @@ impl Breakout {
     }
 
     fn resolve_collisions(&mut self) {
+        let (ball_x, ball_y) = self.ball.location();
+        let ball_r = self.ball.radius();
+
         // Check for collisions and make corrections
-
         if math::objects_are_close(&self.ball, &self.paddle) {
-            let (ball_x, ball_y) = self.ball.location();
-            let ball_r = self.ball.radius();
-
             let ((left_paddle, top_paddle), (right_paddle, bottom_paddle)) =
                 self.paddle.boundaries();
 
@@ -128,6 +127,15 @@ impl Breakout {
                     self.ball.set_velocity((ball_vx, -ball_vy));
                 }
             }
+        }
+
+        // Check if hits top of screen
+        if ball_y + ball_r >= 1.0 {
+            let passed = ball_y + ball_r - 1.0;
+            self.ball.set_location((ball_x, 1.0 - passed - ball_r));
+
+            let (ball_vx, ball_vy) = self.ball.velocity();
+            self.ball.set_velocity((ball_vx, -ball_vy));
         }
     }
 
