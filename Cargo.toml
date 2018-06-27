@@ -5,6 +5,7 @@ authors = ["Andrew Gaspar <andrew.gaspar@outlook.com>"]
 
 [dependencies]
 gfx = "0.17"
+gfx_glyph = "0.11"
 gfx_window_glutin = "0.24"
 glutin = "0.16"
 image = "0.19"

@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate gfx;
 extern crate breakout_core;
+extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate image;
@@ -15,9 +16,10 @@ use colors::*;
 use events::{Button, ButtonState::Pressed, Event};
 use gfx::traits::FactoryExt;
 use gfx::Device;
+use gfx_glyph::{GlyphBrushBuilder, Section};
 use gfx_props::*;
 use glutin::GlContext;
-use std::time::{self, Duration};
+use std::time::{Duration, Instant};
 
 fn get_paddle_vertices_and_indices(game: &Breakout) -> (Vec<PaddleVertex>, Vec<u16>) {
     let (mut vs, mut is) = (vec![], vec![]);
@@ -83,7 +85,7 @@ fn main() {
 
     let gl_builder = glutin::ContextBuilder::new().with_vsync(vsync);
     let mut events_loop = glutin::EventsLoop::new();
-    let (window, mut device, mut factory, main_color, _) =
+    let (window, mut device, mut factory, main_color, depth) =
         gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, gl_builder, &events_loop);
 
     let mut events_loop = events::EventsLoop::new(&mut events_loop);
@@ -91,6 +93,13 @@ fn main() {
     window.set_cursor(glutin::MouseCursor::NoneCursor);
 
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
+
+    let mut glyph_brush = GlyphBrushBuilder::using_font_bytes(
+        &include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/DroidSansMono.ttf"
+        ))[..],
+    ).build(factory.clone());
 
     let pso = factory
         .create_pipeline_simple(
@@ -142,11 +151,15 @@ fn main() {
         out: main_color.clone(),
     };
 
-    let nanos_per_update = time::Duration::from_secs(1) / 960;
+    let nanos_per_update = Duration::from_secs(1) / 960;
+
+    let mut last_fps_update = Instant::now();
+    let mut frame_count: i32 = 0;
+    let mut fps_text = "FPS: -".to_owned();
 
     let mut running = true;
     let mut window_size = (800.0, 800.0);
-    let mut last_update = time::Instant::now();
+    let mut last_update = Instant::now();
     let mut needs_update = false;
     while running {
         // fetch events
@@ -168,7 +181,7 @@ fn main() {
                 Event::Button { button, state }
                     if button == Button::Left || button == Button::Right =>
                 {
-                    let speed = 0.25;
+                    let speed = 0.40;
                     let velocity = speed * if button == Button::Left { -1. } else { 1. };
 
                     if state == Pressed {
@@ -190,7 +203,7 @@ fn main() {
                 Some(fall_behind) => max_fall_behind = fall_behind,
                 None => {
                     // if we fall to 15 frames per second, slow down the simulation.
-                    last_update = time::Instant::now();
+                    last_update = Instant::now();
                     break;
                 }
             };
@@ -210,6 +223,27 @@ fn main() {
         encoder.clear(&ball_data.out, CLEAR_COLOR);
         encoder.draw(&ball_slice, &ball_pso, &ball_data);
         encoder.draw(&slice, &pso, &paddle_data);
+
+        frame_count += 1;
+
+        if last_fps_update.elapsed() > Duration::from_secs(1) {
+            fps_text = format!("FPS: {}", frame_count);
+            frame_count = 0;
+            last_fps_update = Instant::now();
+        }
+
+        let section = Section {
+            text: &fps_text,
+            color: [1., 1., 1., 1.],
+            ..Section::default()
+        };
+
+        glyph_brush.queue(section);
+
+        glyph_brush
+            .draw_queued(&mut encoder, &main_color, &depth)
+            .unwrap();
+
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();
         device.cleanup();
