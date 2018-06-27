@@ -7,37 +7,40 @@ extern crate image;
 extern crate rand;
 
 mod colors;
+mod events;
 mod gfx_props;
 
 use breakout_core::{Ball, Breakout, BreakoutBuilder, GameObject, Paddle};
 use colors::*;
+use events::{Button, ButtonState::Pressed, Event};
 use gfx::traits::FactoryExt;
 use gfx::Device;
 use gfx_props::*;
-use glutin::{ElementState::Pressed, GlContext, KeyboardInput, MouseButton, VirtualKeyCode,
-             WindowEvent};
-use std::time;
+use glutin::GlContext;
+use std::time::{self, Duration};
 
-fn get_paddle_vertices_and_indices(game: &Breakout) -> (Vec<Vertex>, Vec<u16>) {
+fn get_paddle_vertices_and_indices(game: &Breakout) -> (Vec<PaddleVertex>, Vec<u16>) {
     let (mut vs, mut is) = (vec![], vec![]);
 
-    let ((left, top), (right, bottom)) = game.paddle().boundaries();
+    let (length, height) = game.paddle().dimensions();
+
+    let (left, top, right, bottom) = (0., height, length, 0.);
 
     vs.extend(&[
-        Vertex {
-            pos: [right * 2. - 1., bottom * 2. - 1.],
+        PaddleVertex {
+            pos: [right * 2., bottom * 2.],
             color: WHITE,
         },
-        Vertex {
-            pos: [left * 2. - 1., bottom * 2. - 1.],
+        PaddleVertex {
+            pos: [left * 2., bottom * 2.],
             color: WHITE,
         },
-        Vertex {
-            pos: [left * 2. - 1., top * 2. - 1.],
+        PaddleVertex {
+            pos: [left * 2., top * 2.],
             color: WHITE,
         },
-        Vertex {
-            pos: [right * 2. - 1., top * 2. - 1.],
+        PaddleVertex {
+            pos: [right * 2., top * 2.],
             color: WHITE,
         },
     ]);
@@ -76,11 +79,14 @@ fn main() {
         .with_title("Breakout".to_string())
         .with_dimensions(800, 800);
 
-    let gl_builder = glutin::ContextBuilder::new();
-    // .with_vsync(true);
+    let vsync = true;
+
+    let gl_builder = glutin::ContextBuilder::new().with_vsync(vsync);
     let mut events_loop = glutin::EventsLoop::new();
     let (window, mut device, mut factory, main_color, _) =
         gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, gl_builder, &events_loop);
+
+    let mut events_loop = events::EventsLoop::new(&mut events_loop);
 
     window.set_cursor(glutin::MouseCursor::NoneCursor);
 
@@ -90,7 +96,7 @@ fn main() {
         .create_pipeline_simple(
             include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/paddle.vert")),
             include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/paddle.frag")),
-            pipe::new(),
+            paddle_pipe::new(),
         )
         .unwrap();
 
@@ -103,8 +109,8 @@ fn main() {
         .unwrap();
 
     let mut game = BreakoutBuilder::new()
-        .dt(1. / 120.)
-        .ball(Ball::new(0.01, (0.5, 0.7), (0., -0.5)))
+        .dt(1. / 960.)
+        .ball(Ball::new(0.02, (0.5, 0.7), (0., -0.5)))
         .paddle(Paddle::new((0.15, 0.02), (0.5, 0.075)))
         .build();
 
@@ -116,9 +122,13 @@ fn main() {
     let (ball_vertex_buffer, ball_slice) =
         factory.create_vertex_buffer_with_slice(&ball_vertices, &ball_indices[..]);
 
-    let data = pipe::Data {
-        vbuf: vertex_buffer,
-        out: main_color.clone(),
+    let mut paddle_data = {
+        let ((left, _), (_, bottom)) = game.paddle().boundaries();
+        paddle_pipe::Data {
+            vbuf: vertex_buffer,
+            corner: [left * 2. - 1., bottom * 2. - 1.],
+            out: main_color.clone(),
+        }
     };
 
     let mut ball_data = ball_pipe::Data {
@@ -132,102 +142,74 @@ fn main() {
         out: main_color.clone(),
     };
 
-    let nanos_per_update = time::Duration::new(0, (1_000_000_000.0f32 / 120.0f32).round() as u32);
+    let nanos_per_update = time::Duration::from_secs(1) / 960;
 
     let mut running = true;
-    let mut mouse_held = false;
-    let mut alt_held = false;
     let mut window_size = (800.0, 800.0);
-    let mut is_fullscreen = false;
     let mut last_update = time::Instant::now();
     let mut needs_update = false;
     while running {
+        // fetch events
+        events_loop.poll_events(|event| {
+            match event {
+                Event::CloseWindow => running = false,
+                Event::GoFullscreen => {
+                    let current = window.get_current_monitor();
+                    window.set_fullscreen(Some(current));
+                }
+                Event::ExitFullscreen => {
+                    window.set_fullscreen(None);
+                }
+                Event::WindowResized(w, h) => {
+                    // gfx_window_glutin::update_views(&window, &mut data.out, &mut main_depth);
+                    // cube.update_ratio(w as f32 / h as f32);
+                    window_size = (w as f32, h as f32);
+                }
+                Event::Button { button, state }
+                    if button == Button::Left || button == Button::Right =>
+                {
+                    let speed = 0.25;
+                    let velocity = speed * if button == Button::Left { -1. } else { 1. };
+
+                    if state == Pressed {
+                        game.paddle_mut().set_velocity((velocity, 0.));
+                    } else {
+                        game.paddle_mut().set_velocity((0., 0.));
+                    }
+                }
+                _ => (),
+            }
+        });
+
+        let mut max_fall_behind = Duration::from_secs(1) / 15;
         while last_update.elapsed() >= nanos_per_update {
             game.tick();
             last_update += nanos_per_update;
             needs_update = true;
+            match max_fall_behind.checked_sub(nanos_per_update) {
+                Some(fall_behind) => max_fall_behind = fall_behind,
+                None => {
+                    // if we fall to 15 frames per second, slow down the simulation.
+                    last_update = time::Instant::now();
+                    break;
+                }
+            };
         }
 
         if needs_update {
+            {
+                let ((left, _), (_, bottom)) = game.paddle().boundaries();
+                paddle_data.corner = [left * 2. - 1., bottom * 2. - 1.];
+            }
             ball_data.midpoint = [
                 game.ball().location().0 * 2. - 1.,
                 game.ball().location().1 * 2. - 1.,
             ];
         }
 
-        // fetch events
-        events_loop.poll_events(|event| {
-            if let glutin::Event::WindowEvent { event, .. } = event {
-                match event {
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => running = false,
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode,
-                                state,
-                                ..
-                            },
-                        ..
-                    } if (virtual_keycode == Some(VirtualKeyCode::LAlt)
-                        || virtual_keycode == Some(VirtualKeyCode::RAlt)
-                        || virtual_keycode == Some(VirtualKeyCode::LMenu)
-                        || virtual_keycode == Some(VirtualKeyCode::RMenu)) =>
-                    {
-                        alt_held = state == Pressed;
-                    }
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode: Some(VirtualKeyCode::Return),
-                                state: Pressed,
-                                ..
-                            },
-                        ..
-                    } => {
-                        if alt_held {
-                            if is_fullscreen {
-                                let current = window.get_current_monitor();
-                                window.set_fullscreen(Some(current));
-                            } else {
-                                window.set_fullscreen(None);
-                            }
-                            is_fullscreen = !is_fullscreen;
-                        }
-                    }
-                    WindowEvent::Resized(w, h) => {
-                        // gfx_window_glutin::update_views(&window, &mut data.out, &mut main_depth);
-                        // cube.update_ratio(w as f32 / h as f32);
-                        window_size = (w as f32, h as f32);
-                    }
-                    WindowEvent::MouseInput {
-                        state,
-                        button: MouseButton::Left,
-                        ..
-                    } => {
-                        if state == Pressed {
-                            // cube.start_growing();
-                            mouse_held = true;
-                        } else {
-                            // cube.stop_growing();
-                            mouse_held = false;
-                        }
-                    }
-                    _ => (),
-                }
-            }
-        });
-
         encoder.clear(&ball_data.out, CLEAR_COLOR);
         encoder.draw(&ball_slice, &ball_pso, &ball_data);
-        encoder.draw(&slice, &pso, &data);
+        encoder.draw(&slice, &pso, &paddle_data);
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();
         device.cleanup();

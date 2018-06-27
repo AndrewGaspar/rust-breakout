@@ -96,6 +96,10 @@ impl Breakout {
         &self.paddle
     }
 
+    pub fn paddle_mut(&mut self) -> &mut Paddle {
+        &mut self.paddle
+    }
+
     pub fn ball(&self) -> &Ball {
         &self.ball
     }
@@ -105,7 +109,7 @@ impl Breakout {
         math::tick_position(&mut self.paddle, self.dt);
     }
 
-    fn resolve_collisions(&mut self) {
+    fn resolve_ball_collisions(&mut self) {
         let (ball_x, ball_y) = self.ball.location();
         let ball_r = self.ball.radius();
 
@@ -137,6 +141,26 @@ impl Breakout {
             let (ball_vx, ball_vy) = self.ball.velocity();
             self.ball.set_velocity((ball_vx, -ball_vy));
         }
+    }
+
+    fn resolve_paddle_collisions(&mut self) {
+        let (paddle_x, paddle_y) = self.paddle.location();
+        let (paddle_len, paddle_height) = self.paddle.dimensions();
+
+        if paddle_x + paddle_len * 0.5 >= 1.0 {
+            self.paddle.set_location((1.0 - paddle_len * 0.5, paddle_y));
+            self.paddle.set_velocity((0., 0.));
+        }
+
+        if paddle_x - paddle_len * 0.5 <= 0.0 {
+            self.paddle.set_location((paddle_len * 0.5, paddle_y));
+            self.paddle.set_velocity((0., 0.));
+        }
+    }
+
+    fn resolve_collisions(&mut self) {
+        self.resolve_ball_collisions();
+        self.resolve_paddle_collisions();
     }
 
     pub fn tick(&mut self) {

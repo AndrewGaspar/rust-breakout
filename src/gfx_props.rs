@@ -4,13 +4,14 @@ pub type ColorFormat = gfx::format::Rgba8;
 pub type DepthFormat = gfx::format::DepthStencil;
 
 gfx_defines!{
-    vertex Vertex {
+    vertex PaddleVertex {
         pos: [f32; 2] = "a_Pos",
         color: [f32; 3] = "a_Color",
     }
 
-    pipeline pipe {
-        vbuf: gfx::VertexBuffer<Vertex> = (),
+    pipeline paddle_pipe {
+        vbuf: gfx::VertexBuffer<PaddleVertex> = (),
+        corner: gfx::Global<[f32; 2]> = "PaddleCorner",
         out: gfx::RenderTarget<ColorFormat> = "Target0",
     }
 
