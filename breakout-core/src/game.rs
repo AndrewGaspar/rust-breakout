@@ -10,7 +10,7 @@ pub struct BreakoutBuilder {
     dt: Option<f32>,
     ball: Option<Ball>,
     paddle: Option<Paddle>,
-    blocks: Vec<Block>,
+    blocks: Vec<Option<Block>>,
 }
 
 impl BreakoutBuilder {
@@ -38,6 +38,16 @@ impl BreakoutBuilder {
         self
     }
 
+    pub fn add_block(mut self, block: Block) -> Self {
+        self.blocks.push(Some(block));
+        self
+    }
+
+    pub fn add_blocks<I: Iterator<Item = Block>>(mut self, blocks: I) -> Self {
+        self.blocks.extend(blocks.map(Some));
+        self
+    }
+
     pub fn build(self) -> Breakout {
         let BreakoutBuilder {
             dt,
@@ -47,9 +57,9 @@ impl BreakoutBuilder {
         } = self;
 
         Breakout {
-            dt: dt.unwrap(),
-            ball: ball.unwrap(),
-            paddle: paddle.unwrap(),
+            dt: dt.expect("User did not call BreakoutBuilder::dt(f32)"),
+            ball: ball.expect("User did not call BreakoutBuilder::ball(Ball)"),
+            paddle: paddle.expect("User did not call BreakoutBuilder::paddle(Paddle)"),
             blocks,
         }
     }
@@ -67,7 +77,7 @@ pub struct Breakout {
     paddle: Paddle,
 
     /// The blocks in the game space. Sorted from closest to furthest.
-    blocks: Vec<Block>,
+    blocks: Vec<Option<Block>>,
 }
 
 impl Breakout {
@@ -88,6 +98,15 @@ impl Breakout {
         }
     }
 
+    pub fn level_1(dt: f32) -> Self {
+        BreakoutBuilder::new()
+            .dt(dt)
+            .ball(Ball::new(0.015, (0.5, 0.7), (0., -0.5)))
+            .paddle(Paddle::new((0.15, 0.02), (0.5, 0.075)))
+            .add_blocks((0..4_i32).map(|i| Block::new((0.10, 0.05), (0.2 * (i + 1) as f32, 0.75))))
+            .build()
+    }
+
     pub fn dt(&self) -> f32 {
         self.dt
     }
@@ -102,6 +121,10 @@ impl Breakout {
 
     pub fn ball(&self) -> &Ball {
         &self.ball
+    }
+
+    pub fn blocks(&self) -> &[Option<Block>] {
+        &self.blocks[..]
     }
 
     fn tick_positions(&mut self) {
@@ -164,7 +187,6 @@ impl Breakout {
 
         // left side of screen
         if ball_x - ball_r <= 0.0 {
-            let passed = ball_x - ball_r;
             self.ball.set_location((ball_r - ball_x, ball_y));
 
             let (ball_vx, ball_vy) = self.ball.velocity();
@@ -185,7 +207,7 @@ impl Breakout {
 
     fn resolve_paddle_collisions(&mut self) {
         let (paddle_x, paddle_y) = self.paddle.location();
-        let (paddle_len, paddle_height) = self.paddle.dimensions();
+        let (paddle_len, _) = self.paddle.dimensions();
 
         if paddle_x + paddle_len * 0.5 >= 1.0 {
             self.paddle.set_location((1.0 - paddle_len * 0.5, paddle_y));
@@ -198,9 +220,24 @@ impl Breakout {
         }
     }
 
+    fn resolve_ball_block_collisions(&mut self) {
+        let (ball_x, ball_y) = self.ball.location();
+        let ball_r = self.ball.radius();
+
+        for block in &mut self.blocks {
+            if block.is_some() {
+                // Check for collisions and make corrections
+                if math::objects_are_close(&self.ball, block.as_ref().unwrap()) {
+                    *block = None;
+                }
+            }
+        }
+    }
+
     fn resolve_collisions(&mut self) {
         self.resolve_ball_collisions();
         self.resolve_paddle_collisions();
+        self.resolve_ball_block_collisions();
     }
 
     pub fn tick(&mut self) {

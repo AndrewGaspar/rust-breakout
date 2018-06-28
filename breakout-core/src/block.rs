@@ -3,12 +3,33 @@ use object::GameObject;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Block {
+    dimensions: vec2,
     location: vec2,
 }
 
 impl Block {
-    pub fn new(location: vec2) -> Self {
-        Self { location }
+    pub fn new(dimensions: vec2, location: vec2) -> Self {
+        Self {
+            dimensions,
+            location,
+        }
+    }
+
+    pub fn dimensions(&self) -> vec2 {
+        self.dimensions
+    }
+
+    pub fn boundaries(&self) -> (vec2, vec2) {
+        (
+            (
+                self.location.0 - self.dimensions.0 * 0.5,
+                self.location.1 + self.dimensions.1 * 0.5,
+            ),
+            (
+                self.location.0 + self.dimensions.0 * 0.5,
+                self.location.1 - self.dimensions.1 * 0.5,
+            ),
+        )
     }
 }
 
@@ -30,6 +51,6 @@ impl GameObject for Block {
     }
 
     fn bounding_box(&self) -> (vec2, vec2) {
-        ((0., 0.), (0., 0.))
+        self.boundaries()
     }
 }

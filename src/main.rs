@@ -1,17 +1,19 @@
+extern crate breakout_core;
 #[macro_use]
 extern crate gfx;
-extern crate breakout_core;
 extern crate gfx_glyph;
 extern crate gfx_window_glutin;
 extern crate glutin;
 extern crate image;
+#[macro_use]
+extern crate itertools;
 extern crate rand;
 
 mod colors;
 mod events;
 mod gfx_props;
 
-use breakout_core::{Ball, Breakout, BreakoutBuilder, GameObject, Paddle};
+use breakout_core::{Block, Breakout, GameObject};
 use colors::*;
 use events::{Button, ButtonState::Pressed, Event};
 use gfx::traits::FactoryExt;
@@ -51,6 +53,36 @@ fn get_paddle_vertices_and_indices(game: &Breakout) -> (Vec<PaddleVertex>, Vec<u
     (vs, is)
 }
 
+fn get_block_vertices_and_indices(block: &Block) -> (Vec<BlockVertex>, Vec<u16>) {
+    let (mut vs, mut is) = (vec![], vec![]);
+
+    let (length, height) = block.dimensions();
+
+    let (left, top, right, bottom) = (0., height, length, 0.);
+
+    vs.extend(&[
+        BlockVertex {
+            pos: [right * 2., bottom * 2.],
+            color: BLOCK_COLOR,
+        },
+        BlockVertex {
+            pos: [left * 2., bottom * 2.],
+            color: BLOCK_COLOR,
+        },
+        BlockVertex {
+            pos: [left * 2., top * 2.],
+            color: BLOCK_COLOR,
+        },
+        BlockVertex {
+            pos: [right * 2., top * 2.],
+            color: BLOCK_COLOR,
+        },
+    ]);
+    is.extend(&[0, 1, 2, 2, 3, 0]);
+
+    (vs, is)
+}
+
 fn get_ball_vertices_and_indices(game: &Breakout) -> (Vec<BallVertex>, Vec<u16>) {
     let (mut vs, mut is) = (vec![], vec![]);
 
@@ -74,6 +106,28 @@ fn get_ball_vertices_and_indices(game: &Breakout) -> (Vec<BallVertex>, Vec<u16>)
     is.extend(&[0, 1, 2, 2, 3, 0]);
 
     (vs, is)
+}
+
+pub fn get_block_data<R: gfx::Resources, F: gfx::Factory<R>>(
+    factory: &mut F,
+    main_color: &gfx::handle::RenderTargetView<R, ColorFormat>,
+    block: &Block,
+) -> (gfx::Slice<R>, block_pipe::Data<R>) {
+    let (block_vertices, block_indices) = get_block_vertices_and_indices(block);
+
+    let (vertex_buffer, slice) =
+        factory.create_vertex_buffer_with_slice(&block_vertices, &block_indices[..]);
+
+    let ((left, _), (_, bottom)) = block.boundaries();
+
+    (
+        slice,
+        block_pipe::Data {
+            vbuf: vertex_buffer,
+            corner: [left * 2. - 1., bottom * 2. - 1.],
+            out: main_color.clone(),
+        },
+    )
 }
 
 fn main() {
@@ -118,11 +172,15 @@ fn main() {
         )
         .unwrap();
 
-    let mut game = BreakoutBuilder::new()
-        .dt(1. / 960.)
-        .ball(Ball::new(0.02, (0.5, 0.7), (0., -0.5)))
-        .paddle(Paddle::new((0.15, 0.02), (0.5, 0.075)))
-        .build();
+    let block_pso = factory
+        .create_pipeline_simple(
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/block.vert")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/shaders/block.frag")),
+            block_pipe::new(),
+        )
+        .unwrap();
+
+    let mut game = Breakout::level_1(1. / 960.);
 
     let (vertices, indices) = get_paddle_vertices_and_indices(&game);
     let (ball_vertices, ball_indices) = get_ball_vertices_and_indices(&game);
@@ -151,6 +209,14 @@ fn main() {
         radius: game.ball().radius() * 2.,
         out: main_color.clone(),
     };
+
+    let mut block_data = vec![];
+    let mut block_slice = vec![];
+    for block in game.blocks() {
+        let (slice, data) = get_block_data(&mut factory, &main_color, block.as_ref().unwrap());
+        block_data.push(data);
+        block_slice.push(slice);
+    }
 
     let nanos_per_update = Duration::from_secs(1) / 960;
 
@@ -225,6 +291,12 @@ fn main() {
         encoder.clear(&ball_data.out, CLEAR_COLOR);
         encoder.draw(&ball_slice, &ball_pso, &ball_data);
         encoder.draw(&slice, &pso, &paddle_data);
+
+        for (_, block_slice, block_data) in
+            izip!(game.blocks(), &block_slice, &block_data).filter(|(block, _, _)| block.is_some())
+        {
+            encoder.draw(block_slice, &block_pso, block_data);
+        }
 
         frame_count += 1;
 

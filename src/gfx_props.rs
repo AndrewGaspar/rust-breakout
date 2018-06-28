@@ -26,4 +26,15 @@ gfx_defines!{
         radius: gfx::Global<f32> = "BallRadius",
         out: gfx::RenderTarget<ColorFormat> = "Target0",
     }
+
+    vertex BlockVertex {
+        pos: [f32; 2] = "a_Pos",
+        color: [f32; 3] = "a_Color",
+    }
+
+    pipeline block_pipe {
+        vbuf: gfx::VertexBuffer<BlockVertex> = (),
+        corner: gfx::Global<[f32; 2]> = "BlockCorner",
+        out: gfx::RenderTarget<ColorFormat> = "Target0",
+    }
 }

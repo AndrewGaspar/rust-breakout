@@ -1,5 +1,6 @@
 use object::GameObject;
 
+#[allow(non_camel_case_types)]
 pub type vec2 = (f32, f32);
 
 pub fn next_point(start: vec2, velocity: vec2, dt: f32) -> vec2 {
