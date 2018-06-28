@@ -81,7 +81,8 @@ fn main() {
         .with_title("Breakout".to_string())
         .with_dimensions(800, 800);
 
-    let vsync = true;
+    // For some reason the game looks super framey with VSync on, so disabling for now...
+    let vsync = false;
 
     let gl_builder = glutin::ContextBuilder::new().with_vsync(vsync);
     let mut events_loop = glutin::EventsLoop::new();
@@ -156,6 +157,7 @@ fn main() {
     let mut last_fps_update = Instant::now();
     let mut frame_count: i32 = 0;
     let mut fps_text = "FPS: -".to_owned();
+    let vsync_text = format!("vsync: {}", if vsync { "ON" } else { "OFF" });
 
     let mut running = true;
     let mut window_size = (800.0, 800.0);
@@ -232,8 +234,10 @@ fn main() {
             last_fps_update = Instant::now();
         }
 
+        let text = format!("{}\n{}", fps_text, vsync_text);
+
         let section = Section {
-            text: &fps_text,
+            text: &text,
             color: [1., 1., 1., 1.],
             ..Section::default()
         };

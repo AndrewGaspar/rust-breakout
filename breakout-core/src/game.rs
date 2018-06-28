@@ -115,6 +115,7 @@ impl Breakout {
 
         // Check for collisions and make corrections
         if math::objects_are_close(&self.ball, &self.paddle) {
+            let (paddle_x, _) = self.paddle.location();
             let ((left_paddle, top_paddle), (right_paddle, bottom_paddle)) =
                 self.paddle.boundaries();
 
@@ -128,10 +129,27 @@ impl Breakout {
                     self.ball.set_location((ball_x, top_paddle + dip + ball_r));
 
                     let (ball_vx, ball_vy) = self.ball.velocity();
-                    self.ball.set_velocity((ball_vx, -ball_vy));
+
+                    let speed = (ball_vx * ball_vx + ball_vy * ball_vy).sqrt() * 1.05;
+
+                    let offset_from_paddle_center = ball_x - paddle_x;
+
+                    // will be negative when on the left side of paddle.
+                    let percent_from_paddle_center =
+                        offset_from_paddle_center / ((right_paddle - left_paddle) * 0.5);
+
+                    // limit the maximum x component
+                    let percent_speed_in_x_direction = percent_from_paddle_center * 0.8;
+
+                    let new_ball_vx = percent_speed_in_x_direction * speed;
+                    let new_ball_vy = (speed * speed - new_ball_vx * new_ball_vx).sqrt();
+
+                    self.ball.set_velocity((new_ball_vx, new_ball_vy));
                 }
             }
         }
+
+        let (ball_x, ball_y) = self.ball.location();
 
         // Check if hits top of screen
         if ball_y + ball_r >= 1.0 {
@@ -140,6 +158,28 @@ impl Breakout {
 
             let (ball_vx, ball_vy) = self.ball.velocity();
             self.ball.set_velocity((ball_vx, -ball_vy));
+        }
+
+        let (ball_x, ball_y) = self.ball.location();
+
+        // left side of screen
+        if ball_x - ball_r <= 0.0 {
+            let passed = ball_x - ball_r;
+            self.ball.set_location((ball_r - ball_x, ball_y));
+
+            let (ball_vx, ball_vy) = self.ball.velocity();
+            self.ball.set_velocity((-ball_vx, ball_vy));
+        }
+
+        let (ball_x, ball_y) = self.ball.location();
+
+        // right side of screen
+        if ball_x + ball_r >= 1.0 {
+            let passed = ball_x + ball_r - 1.0;
+            self.ball.set_location((1.0 - passed - ball_r, ball_y));
+
+            let (ball_vx, ball_vy) = self.ball.velocity();
+            self.ball.set_velocity((-ball_vx, ball_vy));
         }
     }
 
