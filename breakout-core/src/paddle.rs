@@ -1,4 +1,4 @@
-use math::vec2;
+use math::{vec2, Vec2};
 use object::GameObject;
 
 #[derive(Debug, Copy, Clone)]
@@ -13,7 +13,7 @@ impl Paddle {
         Self {
             dimensions,
             location,
-            velocity: (0., 0.),
+            velocity: [0., 0.],
         }
     }
 
@@ -23,14 +23,14 @@ impl Paddle {
 
     pub fn boundaries(&self) -> (vec2, vec2) {
         (
-            (
-                self.location.0 - self.dimensions.0 * 0.5,
-                self.location.1 + self.dimensions.1 * 0.5,
-            ),
-            (
-                self.location.0 + self.dimensions.0 * 0.5,
-                self.location.1 - self.dimensions.1 * 0.5,
-            ),
+            [
+                self.location.x() - self.dimensions.x() * 0.5,
+                self.location.y() + self.dimensions.y() * 0.5,
+            ],
+            [
+                self.location.x() + self.dimensions.x() * 0.5,
+                self.location.y() - self.dimensions.y() * 0.5,
+            ],
         )
     }
 }

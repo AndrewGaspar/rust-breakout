@@ -1,4 +1,4 @@
-use math::vec2;
+use math::{vec2, Vec2};
 use object::GameObject;
 
 #[derive(Debug, Copy, Clone)]
@@ -51,8 +51,14 @@ impl GameObject for Ball {
 
     fn bounding_box(&self) -> (vec2, vec2) {
         (
-            (self.location.0 - self.radius, self.location.1 + self.radius),
-            (self.location.0 + self.radius, self.location.1 - self.radius),
+            [
+                self.location.x() - self.radius,
+                self.location.y() + self.radius,
+            ],
+            [
+                self.location.x() + self.radius,
+                self.location.y() - self.radius,
+            ],
         )
     }
 }

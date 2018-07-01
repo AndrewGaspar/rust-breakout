@@ -18,7 +18,7 @@ fn basic() {
         game.tick();
     }
 
-    let (ball_x, ball_y) = game.ball().location();
+    let [ball_x, ball_y] = game.ball().location();
     assert!(
         (ball_x - 0.5).abs() < 0.001 && (ball_y - 0.34).abs() < 0.001,
         "Ball was at location ({}, {}), but was expected at location ({}, {})",

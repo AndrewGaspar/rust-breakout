@@ -13,7 +13,7 @@ mod colors;
 mod events;
 mod gfx_props;
 
-use breakout_core::{Block, Breakout, GameObject};
+use breakout_core::prelude::*;
 use colors::*;
 use events::{Button, ButtonState::Pressed, Event};
 use gfx::traits::FactoryExt;
@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 fn get_paddle_vertices_and_indices(game: &Breakout) -> (Vec<PaddleVertex>, Vec<u16>) {
     let (mut vs, mut is) = (vec![], vec![]);
 
-    let (length, height) = game.paddle().dimensions();
+    let [length, height] = game.paddle().dimensions();
 
     let (left, top, right, bottom) = (0., height, length, 0.);
 
@@ -56,7 +56,7 @@ fn get_paddle_vertices_and_indices(game: &Breakout) -> (Vec<PaddleVertex>, Vec<u
 fn get_block_vertices_and_indices(block: &Block) -> (Vec<BlockVertex>, Vec<u16>) {
     let (mut vs, mut is) = (vec![], vec![]);
 
-    let (length, height) = block.dimensions();
+    let [length, height] = block.dimensions();
 
     let (left, top, right, bottom) = (0., height, length, 0.);
 
@@ -118,7 +118,7 @@ pub fn get_block_data<R: gfx::Resources, F: gfx::Factory<R>>(
     let (vertex_buffer, slice) =
         factory.create_vertex_buffer_with_slice(&block_vertices, &block_indices[..]);
 
-    let ((left, _), (_, bottom)) = block.boundaries();
+    let ([left, _], [_, bottom]) = block.boundaries();
 
     (
         slice,
@@ -191,7 +191,7 @@ fn main() {
         factory.create_vertex_buffer_with_slice(&ball_vertices, &ball_indices[..]);
 
     let mut paddle_data = {
-        let ((left, _), (_, bottom)) = game.paddle().boundaries();
+        let ([left, _], [_, bottom]) = game.paddle().boundaries();
         paddle_pipe::Data {
             vbuf: vertex_buffer,
             corner: [left * 2. - 1., bottom * 2. - 1.],
@@ -202,8 +202,8 @@ fn main() {
     let mut ball_data = ball_pipe::Data {
         vbuf: ball_vertex_buffer,
         midpoint: [
-            game.ball().location().0 * 2. - 1.,
-            game.ball().location().1 * 2. - 1.,
+            game.ball().location().x() * 2. - 1.,
+            game.ball().location().y() * 2. - 1.,
         ],
         color: RED,
         radius: game.ball().radius() * 2.,
@@ -253,9 +253,9 @@ fn main() {
                     let velocity = speed * if button == Button::Left { -1. } else { 1. };
 
                     if state == Pressed {
-                        game.paddle_mut().set_velocity((velocity, 0.));
+                        game.paddle_mut().set_velocity([velocity, 0.]);
                     } else {
-                        game.paddle_mut().set_velocity((0., 0.));
+                        game.paddle_mut().set_velocity([0., 0.]);
                     }
                 }
                 _ => (),
@@ -279,12 +279,12 @@ fn main() {
 
         if needs_update {
             {
-                let ((left, _), (_, bottom)) = game.paddle().boundaries();
+                let ([left, _], [_, bottom]) = game.paddle().boundaries();
                 paddle_data.corner = [left * 2. - 1., bottom * 2. - 1.];
             }
             ball_data.midpoint = [
-                game.ball().location().0 * 2. - 1.,
-                game.ball().location().1 * 2. - 1.,
+                game.ball().location().x() * 2. - 1.,
+                game.ball().location().y() * 2. - 1.,
             ];
         }
 

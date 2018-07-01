@@ -1,10 +1,36 @@
 use object::GameObject;
 
 #[allow(non_camel_case_types)]
-pub type vec2 = (f32, f32);
+pub type vec2 = [f32; 2];
+
+pub trait Vec2 {
+    fn x(&self) -> &f32;
+    fn y(&self) -> &f32;
+
+    fn x_mut(&mut self) -> &mut f32;
+    fn y_mut(&mut self) -> &mut f32;
+}
+
+impl Vec2 for vec2 {
+    fn x(&self) -> &f32 {
+        &self[0]
+    }
+
+    fn y(&self) -> &f32 {
+        &self[1]
+    }
+
+    fn x_mut(&mut self) -> &mut f32 {
+        &mut self[0]
+    }
+
+    fn y_mut(&mut self) -> &mut f32 {
+        &mut self[1]
+    }
+}
 
 pub fn next_point(start: vec2, velocity: vec2, dt: f32) -> vec2 {
-    (start.0 + velocity.0 * dt, start.1 + velocity.1 * dt)
+    [start.x() + velocity.x() * dt, start.y() + velocity.y() * dt]
 }
 
 pub fn tick_position<G: GameObject>(obj: &mut G, dt: f32) {
@@ -14,10 +40,10 @@ pub fn tick_position<G: GameObject>(obj: &mut G, dt: f32) {
 }
 
 pub fn overlapping_segments(a: vec2, b: vec2) -> bool {
-    debug_assert!(a.1 >= a.0);
-    debug_assert!(b.1 >= b.0);
+    debug_assert!(a[1] >= a[0]);
+    debug_assert!(b[1] >= b[0]);
 
-    a.1 >= b.0 && b.1 >= a.0
+    a[1] >= b[0] && b[1] >= a[0]
 }
 
 #[test]
@@ -29,11 +55,11 @@ fn basic_segments() {
 }
 
 pub fn overlapping_boxes(
-    ((left_a, top_a), (right_a, bottom_a)): (vec2, vec2),
-    ((left_b, top_b), (right_b, bottom_b)): (vec2, vec2),
+    ([left_a, top_a], [right_a, bottom_a]): (vec2, vec2),
+    ([left_b, top_b], [right_b, bottom_b]): (vec2, vec2),
 ) -> bool {
-    overlapping_segments((left_a, right_a), (left_b, right_b))
-        && overlapping_segments((bottom_a, top_a), (bottom_b, top_b))
+    overlapping_segments([left_a, right_a], [left_b, right_b])
+        && overlapping_segments([bottom_a, top_a], [bottom_b, top_b])
 }
 
 #[test]
