@@ -9,7 +9,7 @@ fn basic() {
     let mut game = BreakoutBuilder::new()
         .dt(1. / 120.)
         .ball(Ball::new(0.02, (0.5, 0.24), (0., -0.1)))
-        .paddle(Paddle::new((0.1, 0.04), (0.5, 0.20)))
+        .paddle(Paddle::new((0.1, 0.04), (0.45, 0.18)))
         .build();
 
     // Run 120 frames - that should be 1 second, which should result in the ball being at

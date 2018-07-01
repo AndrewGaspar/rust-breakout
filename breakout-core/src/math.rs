@@ -4,28 +4,17 @@ use object::GameObject;
 pub type vec2 = [f32; 2];
 
 pub trait Vec2 {
-    fn x(&self) -> &f32;
-    fn y(&self) -> &f32;
-
-    fn x_mut(&mut self) -> &mut f32;
-    fn y_mut(&mut self) -> &mut f32;
+    fn x(&self) -> f32;
+    fn y(&self) -> f32;
 }
 
 impl Vec2 for vec2 {
-    fn x(&self) -> &f32 {
-        &self[0]
+    fn x(&self) -> f32 {
+        self[0]
     }
 
-    fn y(&self) -> &f32 {
-        &self[1]
-    }
-
-    fn x_mut(&mut self) -> &mut f32 {
-        &mut self[0]
-    }
-
-    fn y_mut(&mut self) -> &mut f32 {
-        &mut self[1]
+    fn y(&self) -> f32 {
+        self[1]
     }
 }
 

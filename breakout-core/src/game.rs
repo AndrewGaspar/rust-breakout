@@ -2,7 +2,6 @@ use ball::Ball;
 use block::Block;
 use math;
 use paddle::Paddle;
-use rand;
 
 use object::GameObject;
 
@@ -81,28 +80,11 @@ pub struct Breakout {
 }
 
 impl Breakout {
-    pub fn new_game(dt: f32) -> Self {
-        let ball = {
-            let x_speed: f32 = rand::random::<f32>() - 0.5;
-            let y_speed = (1. - x_speed * x_speed).sqrt();
-            Ball::new(0.02, [0.5, 0.5], [x_speed * 0.1, y_speed * -0.1])
-        };
-
-        let paddle = Paddle::new([0.1, 0.04], [0.5, 0.05]);
-
-        Self {
-            dt,
-            ball,
-            paddle,
-            blocks: vec![],
-        }
-    }
-
     pub fn level_1(dt: f32) -> Self {
         BreakoutBuilder::new()
             .dt(dt)
             .ball(Ball::new(0.015, [0.5, 0.7], [0., -0.5]))
-            .paddle(Paddle::new([0.15, 0.02], [0.5, 0.075]))
+            .paddle(Paddle::new([0.15, 0.02], [0.425, 0.065]))
             .add_blocks((0..4_i32).map(|i| Block::new([0.10, 0.05], [0.2 * (i + 1) as f32, 0.75])))
             .build()
     }
@@ -138,28 +120,28 @@ impl Breakout {
 
         // Check for collisions and make corrections
         if math::objects_are_close(&self.ball, &self.paddle) {
-            let [paddle_x, _] = self.paddle.location();
-            let ([left_paddle, top_paddle], [right_paddle, bottom_paddle]) =
+            let ([paddle_left, paddle_top], [paddle_right, paddle_bottom]) =
                 self.paddle.boundaries();
+            let paddle_mid = (paddle_left + paddle_right) * 0.5;
+            let [paddle_len, _] = self.paddle.dimensions();
 
             // Easy, but non-exhaustive check
-            if ball_x >= left_paddle && ball_x <= right_paddle {
-                if ball_y - ball_r <= top_paddle && ball_y + ball_r >= bottom_paddle {
+            if ball_x >= paddle_left && ball_x <= paddle_right {
+                if ball_y - ball_r <= paddle_top && ball_y + ball_r >= paddle_bottom {
                     // Move ball back above paddle by amount it "dipped" into it and reverse y
                     // component of velocity. This needs a more exhaustive and correct
                     // implementation.
-                    let dip = top_paddle - (ball_y - ball_r);
-                    self.ball.set_location([ball_x, top_paddle + dip + ball_r]);
+                    let dip = paddle_top - (ball_y - ball_r);
+                    self.ball.set_location([ball_x, paddle_top + dip + ball_r]);
 
                     let [ball_vx, ball_vy] = self.ball.velocity();
 
                     let speed = (ball_vx * ball_vx + ball_vy * ball_vy).sqrt() * 1.05;
 
-                    let offset_from_paddle_center = ball_x - paddle_x;
+                    let offset_from_paddle_center = ball_x - paddle_mid;
 
                     // will be negative when on the left side of paddle.
-                    let percent_from_paddle_center =
-                        offset_from_paddle_center / ((right_paddle - left_paddle) * 0.5);
+                    let percent_from_paddle_center = offset_from_paddle_center / (paddle_len * 0.5);
 
                     // limit the maximum x component
                     let percent_speed_in_x_direction = percent_from_paddle_center * 0.8;
@@ -206,16 +188,16 @@ impl Breakout {
     }
 
     fn resolve_paddle_collisions(&mut self) {
-        let [paddle_x, paddle_y] = self.paddle.location();
+        let ([paddle_left, _], [paddle_right, paddle_bottom]) = self.paddle.boundaries();
         let [paddle_len, _] = self.paddle.dimensions();
 
-        if paddle_x + paddle_len * 0.5 >= 1.0 {
-            self.paddle.set_location([1.0 - paddle_len * 0.5, paddle_y]);
+        if paddle_right >= 1.0 {
+            self.paddle.set_location([1.0 - paddle_len, paddle_bottom]);
             self.paddle.set_velocity([0., 0.]);
         }
 
-        if paddle_x - paddle_len * 0.5 <= 0.0 {
-            self.paddle.set_location([paddle_len * 0.5, paddle_y]);
+        if paddle_left <= 0.0 {
+            self.paddle.set_location([0.0, paddle_bottom]);
             self.paddle.set_velocity([0., 0.]);
         }
     }
