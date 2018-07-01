@@ -221,9 +221,6 @@ impl Breakout {
     }
 
     fn resolve_ball_block_collisions(&mut self) {
-        let [ball_x, ball_y] = self.ball.location();
-        let ball_r = self.ball.radius();
-
         for block in &mut self.blocks {
             if block.is_some() {
                 // Check for collisions and make corrections

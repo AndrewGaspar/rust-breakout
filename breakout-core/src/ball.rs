@@ -4,16 +4,16 @@ use object::GameObject;
 #[derive(Debug, Copy, Clone)]
 pub struct Ball {
     radius: f32,
-    location: vec2,
+    midpoint: vec2,
     velocity: vec2,
     spin: f32,
 }
 
 impl Ball {
-    pub fn new(radius: f32, location: vec2, velocity: vec2) -> Self {
+    pub fn new(radius: f32, midpoint: vec2, velocity: vec2) -> Self {
         Self {
             radius,
-            location,
+            midpoint,
             velocity,
             spin: 0.,
         }
@@ -34,7 +34,7 @@ impl Ball {
 
 impl GameObject for Ball {
     fn location(&self) -> vec2 {
-        self.location
+        self.midpoint
     }
 
     fn velocity(&self) -> vec2 {
@@ -42,7 +42,7 @@ impl GameObject for Ball {
     }
 
     fn set_location(&mut self, location: vec2) {
-        self.location = location
+        self.midpoint = location
     }
 
     fn set_velocity(&mut self, velocity: vec2) {
@@ -52,12 +52,12 @@ impl GameObject for Ball {
     fn bounding_box(&self) -> (vec2, vec2) {
         (
             [
-                self.location.x() - self.radius,
-                self.location.y() + self.radius,
+                self.midpoint.x() - self.radius,
+                self.midpoint.y() + self.radius,
             ],
             [
-                self.location.x() + self.radius,
-                self.location.y() - self.radius,
+                self.midpoint.x() + self.radius,
+                self.midpoint.y() - self.radius,
             ],
         )
     }

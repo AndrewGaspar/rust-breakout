@@ -136,7 +136,7 @@ fn main() {
         .with_dimensions(800, 800);
 
     // For some reason the game looks super framey with VSync on, so disabling for now...
-    let vsync = false;
+    let vsync = true;
 
     let gl_builder = glutin::ContextBuilder::new().with_vsync(vsync);
     let mut events_loop = glutin::EventsLoop::new();
