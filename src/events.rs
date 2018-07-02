@@ -20,10 +20,50 @@ pub enum Event {
     WindowResized(u32, u32),
 }
 
+#[derive(Copy, Clone)]
+enum DirectionButton {
+    Left = 0,
+    Right = 1,
+}
+
+fn get_button_from_direction(dir: DirectionButton) -> Button {
+    match dir {
+        DirectionButton::Left => Button::Left,
+        DirectionButton::Right => Button::Right,
+    }
+}
+
+fn get_direction_from_integer(num: u8) -> DirectionButton {
+    match num {
+        0 => DirectionButton::Left,
+        1 => DirectionButton::Right,
+        x => panic!("Did not expect num {}", x),
+    }
+}
+
+fn is_left_keycode(virtual_keycode: &Option<VirtualKeyCode>) -> bool {
+    (*virtual_keycode == Some(VirtualKeyCode::Left) || *virtual_keycode == Some(VirtualKeyCode::A))
+}
+
+fn is_right_keycode(virtual_keycode: &Option<VirtualKeyCode>) -> bool {
+    (*virtual_keycode == Some(VirtualKeyCode::Right) || *virtual_keycode == Some(VirtualKeyCode::D))
+}
+
+fn get_direction_button(virtual_keycode: &Option<VirtualKeyCode>) -> Option<DirectionButton> {
+    if is_left_keycode(virtual_keycode) {
+        Some(DirectionButton::Left)
+    } else if is_right_keycode(virtual_keycode) {
+        Some(DirectionButton::Right)
+    } else {
+        None
+    }
+}
+
 pub struct EventsLoop<'a> {
     glutin_events: Option<&'a mut glutin::EventsLoop>,
     alt_held: bool,
     is_fullscreen: bool,
+    direction_state: [bool; 2],
 }
 
 impl<'a> EventsLoop<'a> {
@@ -32,6 +72,46 @@ impl<'a> EventsLoop<'a> {
             glutin_events: Some(glutin_events),
             alt_held: false,
             is_fullscreen: false,
+            direction_state: [false, false],
+        }
+    }
+
+    fn handle_control(
+        &mut self,
+        button: DirectionButton,
+        state: bool,
+        callback: &mut impl FnMut(Event),
+    ) {
+        match state {
+            true => {
+                if self.direction_state[1 - (button as usize)] {
+                    callback(Event::Button {
+                        button: get_button_from_direction(get_direction_from_integer(
+                            1 - (button as u8),
+                        )),
+                        state: ButtonState::Released,
+                    });
+
+                    self.direction_state[1 - (button as usize)] = false;
+                }
+
+                if !self.direction_state[button as usize] {
+                    callback(Event::Button {
+                        button: get_button_from_direction(button),
+                        state: ButtonState::Pressed,
+                    });
+                    self.direction_state[button as usize] = true;
+                }
+            }
+            false => {
+                if self.direction_state[button as usize] {
+                    callback(Event::Button {
+                        button: get_button_from_direction(button),
+                        state: ButtonState::Released,
+                    });
+                    self.direction_state[button as usize] = false;
+                }
+            }
         }
     }
 
@@ -91,44 +171,57 @@ impl<'a> EventsLoop<'a> {
                                 ..
                             },
                         ..
-                    } if (virtual_keycode == Some(VirtualKeyCode::Left)
-                        || virtual_keycode == Some(VirtualKeyCode::A)) =>
+                    } if get_direction_button(&virtual_keycode).is_some() =>
                     {
-                        if state == Pressed {
-                            callback(Event::Button {
-                                button: Button::Left,
-                                state: ButtonState::Pressed,
-                            })
-                        } else {
-                            callback(Event::Button {
-                                button: Button::Left,
-                                state: ButtonState::Released,
-                            })
-                        }
+                        let dir = get_direction_button(&virtual_keycode).unwrap();
+                        self.handle_control(dir, state == Pressed, &mut callback);
                     }
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode,
-                                state,
-                                ..
-                            },
-                        ..
-                    } if (virtual_keycode == Some(VirtualKeyCode::Right)
-                        || virtual_keycode == Some(VirtualKeyCode::D)) =>
-                    {
-                        if state == Pressed {
-                            callback(Event::Button {
-                                button: Button::Right,
-                                state: ButtonState::Pressed,
-                            })
-                        } else {
-                            callback(Event::Button {
-                                button: Button::Right,
-                                state: ButtonState::Released,
-                            })
-                        }
-                    }
+                    // WindowEvent::KeyboardInput {
+                    //     input:
+                    //         KeyboardInput {
+                    //             virtual_keycode,
+                    //             state,
+                    //             ..
+                    //         },
+                    //     ..
+                    // } if (virtual_keycode == Some(VirtualKeyCode::Left)
+                    //     || virtual_keycode == Some(VirtualKeyCode::A)) =>
+                    // {
+                    //     if state == Pressed {
+                    //         callback(Event::Button {
+                    //             button: Button::Left,
+                    //             state: ButtonState::Pressed,
+                    //         })
+                    //     } else {
+                    //         callback(Event::Button {
+                    //             button: Button::Left,
+                    //             state: ButtonState::Released,
+                    //         })
+                    //     }
+                    // }
+                    // WindowEvent::KeyboardInput {
+                    //     input:
+                    //         KeyboardInput {
+                    //             virtual_keycode,
+                    //             state,
+                    //             ..
+                    //         },
+                    //     ..
+                    // } if (virtual_keycode == Some(VirtualKeyCode::Right)
+                    //     || virtual_keycode == Some(VirtualKeyCode::D)) =>
+                    // {
+                    //     if state == Pressed {
+                    //         callback(Event::Button {
+                    //             button: Button::Right,
+                    //             state: ButtonState::Pressed,
+                    //         })
+                    //     } else {
+                    //         callback(Event::Button {
+                    //             button: Button::Right,
+                    //             state: ButtonState::Released,
+                    //         })
+                    //     }
+                    // }
                     _ => (),
                 }
             }
