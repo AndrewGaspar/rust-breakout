@@ -249,7 +249,7 @@ fn main() {
                 Event::Button { button, state }
                     if button == Button::Left || button == Button::Right =>
                 {
-                    let speed = 0.40;
+                    let speed = 0.70;
                     let velocity = speed * if button == Button::Left { -1. } else { 1. };
 
                     if state == Pressed {
