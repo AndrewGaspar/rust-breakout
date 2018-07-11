@@ -85,7 +85,9 @@ impl Breakout {
             .dt(dt)
             .ball(Ball::new(0.015, [0.5, 0.7], [0., -0.5]))
             .paddle(Paddle::new([0.15, 0.02], [0.425, 0.065]))
-            .add_blocks((0..4_i32).map(|i| Block::new([0.10, 0.05], [0.2 * (i + 1) as f32, 0.75])))
+            .add_blocks(
+                (0..4_i32).map(|i| Block::new([0.10, 0.05], [0.2 * (i + 1) as f32 - 0.05, 0.725])),
+            )
             .build()
     }
 
