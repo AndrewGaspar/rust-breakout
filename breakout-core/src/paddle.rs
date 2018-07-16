@@ -1,5 +1,5 @@
-use math::{vec2, Vec2};
-use object::GameObject;
+use super::prelude::*;
+use shape::Box;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Paddle {
@@ -20,12 +20,26 @@ impl Paddle {
     pub fn dimensions(&self) -> vec2 {
         self.dimensions
     }
+}
 
-    pub fn boundaries(&self) -> (vec2, vec2) {
-        (
-            [self.origin.x(), self.origin.y() + self.dimensions.y()],
-            [self.origin.x() + self.dimensions.x(), self.origin.y()],
-        )
+impl Shape for Paddle {
+    fn bounding_box(&self) -> Box {
+        Box {
+            left: self.left(),
+            right: self.right(),
+            bottom: self.bottom(),
+            top: self.top(),
+        }
+    }
+}
+
+impl Rectangle for Paddle {
+    fn dimensions(&self) -> vec2 {
+        self.dimensions
+    }
+
+    fn origin(&self) -> vec2 {
+        self.origin
     }
 }
 
@@ -44,9 +58,5 @@ impl GameObject for Paddle {
 
     fn set_velocity(&mut self, velocity: vec2) {
         self.velocity = velocity
-    }
-
-    fn bounding_box(&self) -> (vec2, vec2) {
-        self.boundaries()
     }
 }

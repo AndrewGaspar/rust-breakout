@@ -6,6 +6,4 @@ pub trait GameObject {
 
     fn set_location(&mut self, location: vec2);
     fn set_velocity(&mut self, velocity: vec2);
-
-    fn bounding_box(&self) -> (vec2, vec2);
 }

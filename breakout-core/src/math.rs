@@ -1,4 +1,5 @@
-use object::GameObject;
+use prelude::*;
+use shape;
 
 #[allow(non_camel_case_types)]
 pub type vec2 = [f32; 2];
@@ -43,12 +44,9 @@ fn basic_segments() {
     assert!(overlapping_segments((1., 5.), (2., 4.)));
 }
 
-pub fn overlapping_boxes(
-    ([left_a, top_a], [right_a, bottom_a]): (vec2, vec2),
-    ([left_b, top_b], [right_b, bottom_b]): (vec2, vec2),
-) -> bool {
-    overlapping_segments([left_a, right_a], [left_b, right_b])
-        && overlapping_segments([bottom_a, top_a], [bottom_b, top_b])
+pub fn overlapping_boxes(a: &shape::Box, b: &shape::Box) -> bool {
+    overlapping_segments([a.left, a.right], [b.left, b.right])
+        && overlapping_segments([a.bottom, a.top], [b.bottom, b.top])
 }
 
 #[test]
@@ -59,6 +57,6 @@ pub fn basic_boxes() {
     ));
 }
 
-pub fn objects_are_close<A: GameObject, B: GameObject>(a: &A, b: &B) -> bool {
-    overlapping_boxes(a.bounding_box(), b.bounding_box())
+pub fn objects_are_close<A: Shape, B: Shape>(a: &A, b: &B) -> bool {
+    overlapping_boxes(&a.bounding_box(), &b.bounding_box())
 }

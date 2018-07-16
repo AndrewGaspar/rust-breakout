@@ -118,13 +118,11 @@ pub fn get_block_data<R: gfx::Resources, F: gfx::Factory<R>>(
     let (vertex_buffer, slice) =
         factory.create_vertex_buffer_with_slice(&block_vertices, &block_indices[..]);
 
-    let ([left, _], [_, bottom]) = block.boundaries();
-
     (
         slice,
         block_pipe::Data {
             vbuf: vertex_buffer,
-            corner: [left * 2. - 1., bottom * 2. - 1.],
+            corner: [block.left() * 2. - 1., block.bottom() * 2. - 1.],
             out: main_color.clone(),
         },
     )
@@ -191,10 +189,12 @@ fn main() {
         factory.create_vertex_buffer_with_slice(&ball_vertices, &ball_indices[..]);
 
     let mut paddle_data = {
-        let ([left, _], [_, bottom]) = game.paddle().boundaries();
         paddle_pipe::Data {
             vbuf: vertex_buffer,
-            corner: [left * 2. - 1., bottom * 2. - 1.],
+            corner: [
+                game.paddle().left() * 2. - 1.,
+                game.paddle().bottom() * 2. - 1.,
+            ],
             out: main_color.clone(),
         }
     };
@@ -279,8 +279,10 @@ fn main() {
 
         if needs_update {
             {
-                let ([left, _], [_, bottom]) = game.paddle().boundaries();
-                paddle_data.corner = [left * 2. - 1., bottom * 2. - 1.];
+                paddle_data.corner = [
+                    game.paddle().left() * 2. - 1.,
+                    game.paddle().bottom() * 2. - 1.,
+                ];
             }
             ball_data.midpoint = [
                 game.ball().location().x() * 2. - 1.,

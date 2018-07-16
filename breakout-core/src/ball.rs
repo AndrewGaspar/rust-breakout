@@ -1,5 +1,5 @@
-use math::{vec2, Vec2};
-use object::GameObject;
+use prelude::*;
+use shape::Box;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Ball {
@@ -19,16 +19,36 @@ impl Ball {
         }
     }
 
-    pub fn radius(&self) -> f32 {
-        self.radius
-    }
-
     pub fn spin(&self) -> f32 {
         self.spin
     }
 
     pub fn set_spin(&mut self, spin: f32) {
         self.spin = spin
+    }
+}
+
+impl Shape for Ball {
+    fn bounding_box(&self) -> Box {
+        let [mid_x, mid_y] = self.origin();
+        let r = self.radius();
+
+        Box {
+            left: mid_x - r,
+            right: mid_x + r,
+            bottom: mid_y - r,
+            top: mid_y + r,
+        }
+    }
+}
+
+impl Circle for Ball {
+    fn radius(&self) -> f32 {
+        self.radius
+    }
+
+    fn origin(&self) -> vec2 {
+        self.midpoint
     }
 }
 
@@ -47,18 +67,5 @@ impl GameObject for Ball {
 
     fn set_velocity(&mut self, velocity: vec2) {
         self.velocity = velocity
-    }
-
-    fn bounding_box(&self) -> (vec2, vec2) {
-        (
-            [
-                self.midpoint.x() - self.radius,
-                self.midpoint.y() + self.radius,
-            ],
-            [
-                self.midpoint.x() + self.radius,
-                self.midpoint.y() - self.radius,
-            ],
-        )
     }
 }

@@ -1,7 +1,5 @@
-use ball::Ball;
-use block::Block;
 use math;
-use paddle::Paddle;
+use prelude::*;
 
 use object::GameObject;
 
@@ -122,8 +120,12 @@ impl Breakout {
 
         // Check for collisions and make corrections
         if math::objects_are_close(&self.ball, &self.paddle) {
-            let ([paddle_left, paddle_top], [paddle_right, paddle_bottom]) =
-                self.paddle.boundaries();
+            let (paddle_left, paddle_top, paddle_right, paddle_bottom) = (
+                self.paddle().left(),
+                self.paddle().top(),
+                self.paddle().right(),
+                self.paddle().bottom(),
+            );
             let paddle_mid = (paddle_left + paddle_right) * 0.5;
             let [paddle_len, _] = self.paddle.dimensions();
 
@@ -190,7 +192,12 @@ impl Breakout {
     }
 
     fn resolve_paddle_collisions(&mut self) {
-        let ([paddle_left, _], [paddle_right, paddle_bottom]) = self.paddle.boundaries();
+        let (paddle_left, paddle_right, paddle_bottom) = (
+            self.paddle().left(),
+            self.paddle().right(),
+            self.paddle().bottom(),
+        );
+
         let [paddle_len, _] = self.paddle.dimensions();
 
         if paddle_right >= 1.0 {
